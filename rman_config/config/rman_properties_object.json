@@ -671,6 +671,18 @@
         },
         {
             "panel": "OBJECT_PT_renderman_object_raytracing",
+            "name": "rman_caustics",
+            "riattr": "trace:caustics",
+            "label": "Caustics",
+            "type": "int",
+            "ipr_editable": true,            
+            "default": 1,
+            "widget": "checkBox",
+            "page": "Trace",
+            "help": "Indicates whether object participates in caustic calculations. May be overridden by the integrator allowCaustics flag, or by thin shadows."
+        },
+        {
+            "panel": "OBJECT_PT_renderman_object_raytracing",
             "name": "rman_autoBias",
             "primvar": "trace:autobias",
             "label": "Auto Bias",
