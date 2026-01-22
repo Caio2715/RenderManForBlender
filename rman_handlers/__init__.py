@@ -12,13 +12,14 @@ import re
 import sys
             
 
-__ORIGINAL_BL_FILEPATH__ = None
-__ORIGINAL_BL_FILE_FORMAT__ = None
-__BL_TMP_FILE__ = None
+ORIGINAL_BL_FILEPATH = None
+ORIGINAL_BL_FILE_FORMAT = None
+ORIGINAL_BL_MEDIA_FORMAT = None
+BL_TMP_FILE = None
 if RFB_PLATFORM == "windows":
-    __BL_TMP_DIR__ = 'C:/tmp'
+    BL_TMP_DIR = 'C:/tmp'
 else:
-    __BL_TMP_DIR__ = '/tmp'
+    BL_TMP_DIR = '/tmp'
 
 def set_qn_env_vars(bl_scene):
     if not bl_scene or not isinstance(bl_scene, bpy.types.Scene):
@@ -85,28 +86,32 @@ def render_pre(bl_scene):
     mode, and use_bl_compositor is off, set it to a temporary filename. 
     The temporary filename will get removed in the render_post handler.
     '''
-    global __ORIGINAL_BL_FILEPATH__
-    global __ORIGINAL_BL_FILE_FORMAT__
-    global __BL_TMP_FILE__
-    global __BL_TMP_DIR__
+    global ORIGINAL_BL_FILEPATH
+    global ORIGINAL_BL_FILE_FORMAT
+    global ORIGINAL_BL_MEDIA_FORMAT
+    global BL_TMP_FILE
+    global BL_TMP_DIR
     from ..rfb_utils import display_utils
     from ..rfb_utils import scene_utils
 
     if bl_scene.render.engine != 'PRMAN_RENDER':
         return
 
-    __ORIGINAL_BL_FILEPATH__ = bl_scene.render.filepath
-    __ORIGINAL_BL_FILE_FORMAT__ = bl_scene.render.image_settings.file_format    
+    ORIGINAL_BL_FILEPATH = bl_scene.render.filepath
+    ORIGINAL_BL_FILE_FORMAT = bl_scene.render.image_settings.file_format    
+    ORIGINAL_BL_MEDIA_FORMAT = bl_scene.render.image_settings.media_type
     write_comp = scene_utils.should_use_bl_compositor(bl_scene)
     dspy_info = display_utils.get_beauty_filepath(bl_scene, use_blender_frame=True, expand_tokens=True, no_ext=True)    
     if display_utils.using_rman_displays():
         if write_comp:       
             bl_scene.render.filepath = dspy_info['filePath']
             img_format = display_utils.__RMAN_TO_BLENDER__.get(dspy_info['display_driver'], 'OPEN_EXR_MULTILAYER')
+            bl_scene.render.image_settings.media_type = 'IMAGE'
             bl_scene.render.image_settings.file_format = img_format  
         else:
-            __BL_TMP_FILE__ = os.path.join(__BL_TMP_DIR__, '####.png')
-            bl_scene.render.filepath = __BL_TMP_FILE__
+            BL_TMP_FILE = os.path.join(BL_TMP_DIR, '####.png')
+            bl_scene.render.filepath = BL_TMP_FILE
+            bl_scene.render.image_settings.media_type = 'IMAGE'
             bl_scene.render.image_settings.file_format = 'PNG'        
     else:
         bl_scene.render.filepath = dspy_info['filePath']     
@@ -119,20 +124,22 @@ def render_post(bl_scene):
     it exists.
     '''
 
-    global __ORIGINAL_BL_FILEPATH__
-    global __ORIGINAL_BL_FILE_FORMAT__
-    global __BL_TMP_FILE__
+    global ORIGINAL_BL_FILEPATH
+    global ORIGINAL_BL_FILE_FORMAT
+    global ORIGINAL_BL_MEDIA_FORMAT
+    global BL_TMP_FILE
 
     if bl_scene.render.engine != 'PRMAN_RENDER':
         return    
 
-    bl_scene.render.filepath = __ORIGINAL_BL_FILEPATH__
-    bl_scene.render.image_settings.file_format = __ORIGINAL_BL_FILE_FORMAT__
-    if __BL_TMP_FILE__:
-        filePath = re.sub(r'####', '%04d' % bl_scene.frame_current, __BL_TMP_FILE__)
+    bl_scene.render.image_settings.media_type = ORIGINAL_BL_MEDIA_FORMAT
+    bl_scene.render.filepath = ORIGINAL_BL_FILEPATH
+    bl_scene.render.image_settings.file_format = ORIGINAL_BL_FILE_FORMAT
+    if BL_TMP_FILE:
+        filePath = re.sub(r'####', '%04d' % bl_scene.frame_current, BL_TMP_FILE)
         if os.path.exists(filePath):
             os.remove(filePath)
-        __BL_TMP_FILE__ = None
+        BL_TMP_FILE = None
 
 @persistent
 def render_stop(bl_scene):
