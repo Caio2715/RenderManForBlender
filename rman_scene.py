@@ -236,7 +236,8 @@ class RmanScene(object):
     def set_bl_scene(self, depsgraph):
         self.bl_scene = depsgraph.scene_eval
         self.bl_view_layer = depsgraph.view_layer_eval
-        self._find_renderman_layer()       
+        self._find_renderman_layer()   
+        string_utils.set_var('layer', self.bl_view_layer.name.replace(' ', '_'))    
 
     def export_for_final_render(self, depsgraph, sg_scene, bl_view_layer):
         self.sg_scene = sg_scene

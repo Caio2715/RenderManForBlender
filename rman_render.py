@@ -662,16 +662,18 @@ class BlRenderResultHelper:
             # check if we should write out the AOVs
             if self.write_aovs:
                 use_ice = hasattr(ice, 'FromArray')
+                img_format = ice.constants.FMT_EXRFLOAT
+                ext = 'exr'
                 for i, dspy_nm in enumerate(self.dspy_dict['displays'].keys()):
                     if dspy_nm in ['optix_denoiser_albedo', 'optix_denoiser_normal']:
-                        # don't write out these displays; they're only for the opti
+                        # don't write out these displays; they're only for the optix denoiser
                         continue
                     filepath = self.dspy_dict['displays'][dspy_nm]['filePath']
 
-                    if i == 0:
+                    #if i == 0:
                         # write out the beauty with a 'raw' substring
-                        toks = os.path.splitext(filepath)
-                        filepath = '%s_beauty_raw.exr' % (toks[0])
+                    #    toks = os.path.splitext(filepath)
+                    #    filepath = '%s_beauty_raw.exr' % (toks[0])
                     
                     if use_ice:
                         buffer = self.rman_render._get_buffer(self.width, self.height, image_num=i, raw_buffer=True, as_flat=False, render=self.render,
@@ -682,13 +684,13 @@ class BlRenderResultHelper:
                         # use ice to save out the image
                         img = ice.FromArray(buffer)
                         img = img.Flip(False, True, False)
-                        img_format = ice.constants.FMT_EXRFLOAT
-                        if not display_utils.using_rman_displays(bl_view_layer=self.rman_render.rman_scene.bl_view_layer):
-                            img_format = __BLENDER_TO_ICE_DSPY__.get(self.bl_scene.render.image_settings.file_format, img_format)
+                        #img_format = ice.constants.FMT_EXRFLOAT
+                        #if not display_utils.using_rman_displays(bl_view_layer=self.bl_layer):
+                        #    img_format = __BLENDER_TO_ICE_DSPY__.get(self.bl_scene.render.image_settings.file_format, img_format)
 
                         # change file extension                            
                         toks = os.path.splitext(filepath)
-                        ext = __ICE_EXT_MAP__.get(img_format)
+                        # ext = __ICE_EXT_MAP__.get(img_format)
                         filepath = '%s.%s' % (toks[0], ext)                            
                         img.Save(filepath, img_format)        
 
@@ -962,7 +964,7 @@ class RmanRender(object):
             self.rman_context.set_mode_append(RmanRenderContext.k_for_background)
             self.rman_render_into = ''
             is_external = True
-            if use_compositor:
+            if scene_utils.should_use_blender_dspy(self.bl_scene, bl_view_layer=bl_layer):
                 self.rman_render_into = 'blender'
                 is_external = False
             self.rman_callbacks.clear()
@@ -1017,7 +1019,9 @@ class RmanRender(object):
             dspy_dict = display_utils.get_dspy_dict(self.rman_scene, include_holdouts=False)
             self.bl_rr_helper = BlRenderResultHelper(self, self.bl_scene, dspy_dict, bl_layer)
             if for_background:
-                self.bl_rr_helper.write_aovs = (use_compositor and rm.use_bl_compositor_write_aovs)
+                self.bl_rr_helper.write_aovs = True
+                if use_compositor:
+                    self.bl_rr_helper.write_aovs = rm.use_bl_compositor_write_aovs
             else:
                 self.bl_rr_helper.write_aovs = True
             self.bl_rr_helper.call_begin_result()          

@@ -2,7 +2,7 @@ from . import shadergraph_utils
 from . import object_utils
 from . import string_utils
 from .envconfig_utils import envconfig
-from ..rman_constants import RMAN_GLOBAL_VOL_AGGREGATE
+from ..rman_constants import RMAN_GLOBAL_VOL_AGGREGATE, BLENDER_50
 from ..rfb_logger import rfb_log
 import bpy
 import math
@@ -279,15 +279,39 @@ def should_use_bl_compositor(bl_scene, bl_view_layer=None):
     rm = bl_scene.renderman
     if not bpy.app.background:
         return (rm.render_into == 'blender')
+    
+    if not rm.use_bl_compositor:
+        # explicitiy turned off
+        return False    
+
+    #if not display_utils.using_rman_displays(bl_view_layer=bl_view_layer):
+    #    return True
+    
+    if BLENDER_50:
+        return bl_scene.compositing_node_group and bl_scene.render.use_compositing
+    
+    return bl_scene.use_nodes and bl_scene.render.use_compositing
+
+def should_use_blender_dspy(bl_scene, bl_view_layer=None):
+
+    from . import display_utils
+
+    rm = bl_scene.renderman
+    if not bpy.app.background:
+        return (rm.render_into == 'blender')
+    
+    if rm.use_bl_compositor:
+        # explicitiy turned on
+        return True
 
     if not display_utils.using_rman_displays(bl_view_layer=bl_view_layer):
         return True
-
-    if not rm.use_bl_compositor:
-        # explicitiy turned off
-        return False
     
-    return bl_scene.use_nodes and bl_scene.render.use_compositing
+    if BLENDER_50:
+        return bl_scene.compositing_node_group and bl_scene.render.use_compositing
+    
+    return bl_scene.use_nodes and bl_scene.render.use_compositing    
+
 
 def any_areas_shading():           
     '''

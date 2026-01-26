@@ -15,11 +15,6 @@ import sys
 ORIGINAL_BL_FILEPATH = None
 ORIGINAL_BL_FILE_FORMAT = None
 ORIGINAL_BL_MEDIA_FORMAT = None
-BL_TMP_FILE = None
-if RFB_PLATFORM == "windows":
-    BL_TMP_DIR = 'C:/tmp'
-else:
-    BL_TMP_DIR = '/tmp'
 
 def set_qn_env_vars(bl_scene):
     if not bl_scene or not isinstance(bl_scene, bpy.types.Scene):
@@ -82,17 +77,11 @@ def despgraph_post_handler(bl_scene, depsgraph):
 def render_pre(bl_scene):
     '''
     render_pre handler that changes the Blender filepath attribute
-    to match our filename output format. In the case of background
-    mode, and use_bl_compositor is off, set it to a temporary filename. 
-    The temporary filename will get removed in the render_post handler.
+    to what the user wants in the workspace editor (path_comp_image_output)
     '''
     global ORIGINAL_BL_FILEPATH
     global ORIGINAL_BL_FILE_FORMAT
     global ORIGINAL_BL_MEDIA_FORMAT
-    global BL_TMP_FILE
-    global BL_TMP_DIR
-    from ..rfb_utils import display_utils
-    from ..rfb_utils import scene_utils
 
     if bl_scene.render.engine != 'PRMAN_RENDER':
         return
@@ -100,34 +89,22 @@ def render_pre(bl_scene):
     ORIGINAL_BL_FILEPATH = bl_scene.render.filepath
     ORIGINAL_BL_FILE_FORMAT = bl_scene.render.image_settings.file_format    
     ORIGINAL_BL_MEDIA_FORMAT = bl_scene.render.image_settings.media_type
-    write_comp = scene_utils.should_use_bl_compositor(bl_scene)
-    dspy_info = display_utils.get_beauty_filepath(bl_scene, use_blender_frame=True, expand_tokens=True, no_ext=True)    
-    if display_utils.using_rman_displays():
-        if write_comp:       
-            bl_scene.render.filepath = dspy_info['filePath']
-            img_format = display_utils.__RMAN_TO_BLENDER__.get(dspy_info['display_driver'], 'OPEN_EXR_MULTILAYER')
-            bl_scene.render.image_settings.media_type = 'IMAGE'
-            bl_scene.render.image_settings.file_format = img_format  
-        else:
-            BL_TMP_FILE = os.path.join(BL_TMP_DIR, '####.png')
-            bl_scene.render.filepath = BL_TMP_FILE
-            bl_scene.render.image_settings.media_type = 'IMAGE'
-            bl_scene.render.image_settings.file_format = 'PNG'        
-    else:
-        bl_scene.render.filepath = dspy_info['filePath']     
+    filepath = string_utils.expand_string(bl_scene.renderman.path_comp_image_output, frame='#')
+    bl_scene.render.use_file_extension = True
+    bl_scene.render.filepath = filepath
+    bl_scene.render.image_settings.media_type = 'IMAGE'
+    bl_scene.render.image_settings.file_format = 'OPEN_EXR'           
 
 @persistent
 def render_post(bl_scene):
     '''
     render_post handler that puts the Blender filepath attribute back
-    to its original value. Also, remove the temporary output file if 
-    it exists.
+    to its original value. 
     '''
 
     global ORIGINAL_BL_FILEPATH
     global ORIGINAL_BL_FILE_FORMAT
     global ORIGINAL_BL_MEDIA_FORMAT
-    global BL_TMP_FILE
 
     if bl_scene.render.engine != 'PRMAN_RENDER':
         return    
@@ -135,11 +112,6 @@ def render_post(bl_scene):
     bl_scene.render.image_settings.media_type = ORIGINAL_BL_MEDIA_FORMAT
     bl_scene.render.filepath = ORIGINAL_BL_FILEPATH
     bl_scene.render.image_settings.file_format = ORIGINAL_BL_FILE_FORMAT
-    if BL_TMP_FILE:
-        filePath = re.sub(r'####', '%04d' % bl_scene.frame_current, BL_TMP_FILE)
-        if os.path.exists(filePath):
-            os.remove(filePath)
-        BL_TMP_FILE = None
 
 @persistent
 def render_stop(bl_scene):
