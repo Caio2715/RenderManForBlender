@@ -1066,16 +1066,16 @@ class RmanRender(object):
             width = int(render.resolution_x * image_scale)
             height = int(render.resolution_y * image_scale)   
 
-            if self.bl_rr_helper:
-                self.rman_denoiser.bootstrap(self.bl_rr_helper.width, self.bl_rr_helper.height, rm.ai_denoiser_asymmetry, rm.blender_denoiser_use_color_pass)
-            else:
-                self.rman_denoiser.bootstrap(width, height, rm.ai_denoiser_asymmetry, rm.blender_denoiser_use_color_pass)
+            if self.use_qn:
+                if self.bl_rr_helper:
+                    self.rman_denoiser.bootstrap(self.bl_rr_helper.width, self.bl_rr_helper.height, rm.ai_denoiser_asymmetry, rm.blender_denoiser_use_color_pass)
+                else:
+                    self.rman_denoiser.bootstrap(width, height, rm.ai_denoiser_asymmetry, rm.blender_denoiser_use_color_pass)
             self.sg_scene.Render(render_cmd)
         if self.bl_rr_helper:  
             self.bl_rr_helper.register_passes()
                               
         self.start_stats_thread()
-        #while self.bl_engine and not self.bl_engine.test_break() and self.rman_is_live_rendering:
         while self.bl_engine and not self.bl_engine.test_break() and self.rman_context.is_live_rendering():
             time.sleep(0.01)      
             if is_render_into_blender and self.bl_rr_helper:

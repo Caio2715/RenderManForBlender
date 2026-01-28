@@ -4,7 +4,7 @@ from ..rfb_utils import string_utils
 from ..rfb_utils import shadergraph_utils
 from ..rfb_utils import upgrade_utils
 from ..rfb_utils.envconfig_utils import envconfig
-from ..rman_constants import RMAN_FAKE_NODEGROUP, RFB_PLATFORM
+from ..rman_constants import RMAN_FAKE_NODEGROUP, BLENDER_50
 from bpy.app.handlers import persistent
 import bpy
 import os
@@ -87,13 +87,14 @@ def render_pre(bl_scene):
         return
 
     ORIGINAL_BL_FILEPATH = bl_scene.render.filepath
-    ORIGINAL_BL_FILE_FORMAT = bl_scene.render.image_settings.file_format    
-    ORIGINAL_BL_MEDIA_FORMAT = bl_scene.render.image_settings.media_type
+    ORIGINAL_BL_FILE_FORMAT = bl_scene.render.image_settings.file_format         
     filepath = string_utils.expand_string(bl_scene.renderman.path_comp_image_output, frame='#')
     bl_scene.render.use_file_extension = True
     bl_scene.render.filepath = filepath
-    bl_scene.render.image_settings.media_type = 'IMAGE'
-    bl_scene.render.image_settings.file_format = 'OPEN_EXR'           
+    if BLENDER_50: 
+        ORIGINAL_BL_MEDIA_FORMAT = bl_scene.render.image_settings.media_type
+        bl_scene.render.image_settings.media_type = 'IMAGE'
+    bl_scene.render.image_settings.file_format = 'OPEN_EXR'            
 
 @persistent
 def render_post(bl_scene):
@@ -108,8 +109,8 @@ def render_post(bl_scene):
 
     if bl_scene.render.engine != 'PRMAN_RENDER':
         return    
-
-    bl_scene.render.image_settings.media_type = ORIGINAL_BL_MEDIA_FORMAT
+    if BLENDER_50:
+        bl_scene.render.image_settings.media_type = ORIGINAL_BL_MEDIA_FORMAT
     bl_scene.render.filepath = ORIGINAL_BL_FILEPATH
     bl_scene.render.image_settings.file_format = ORIGINAL_BL_FILE_FORMAT
 
