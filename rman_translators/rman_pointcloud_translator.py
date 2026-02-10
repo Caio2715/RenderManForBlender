@@ -11,10 +11,13 @@ class RmanPointCloudTranslator(RmanTranslator):
         self.bl_type = 'POINTCLOUD' 
 
     def export(self, ob, db_name):
-
-        sg_node = self.rman_scene.sg_scene.CreatePoints(db_name)
+        sg_node = self.rman_scene.sg_scene.CreateGroup('')
         rman_sg_pointcloud = RmanSgPointCloud(self.rman_scene, sg_node, db_name)
-
+        if len(ob.data.points) < 1:
+            return rman_sg_pointcloud
+        rman_sg_pointcloud.sg_pointcloud = self.rman_scene.sg_scene.CreatePoints(db_name)
+        rman_sg_pointcloud.sg_node.AddChild(rman_sg_pointcloud.sg_pointcloud)
+        
         return rman_sg_pointcloud
 
     def export_deform_sample(self, rman_sg_pointcloud, ob, time_sample):
@@ -53,7 +56,8 @@ class RmanPointCloudTranslator(RmanTranslator):
         
         # if this is empty continue:
         if not P or len(P) < 1:
-            rman_sg_pointcloud.sg_node = None
+            if rman_sg_pointcloud.sg_pointcloud:
+                rman_sg_pointcloud.sg_node.RemoveChild(rman_sg_pointcloud.sg_pointcloud)
             rman_sg_pointcloud.is_transforming = False
             rman_sg_pointcloud.is_deforming = False
             return None    

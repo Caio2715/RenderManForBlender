@@ -13,6 +13,8 @@ from typing import Union
 
 __oneK2__ = 1024.0*1024.0
 RFB_STATS_MANAGER = None
+PROCESS_EVENTS_LIMIT = 50000
+PROCESS_EVENTS_TIME = 10
 
 LIVE_METRICS = [
     ["/rman/riley.variant", "Variant"],
@@ -275,7 +277,9 @@ class RfBStatsManager(object):
         self.web_socket_enabled = False
         self.boot_strap_thread = None
         self.boot_strap_thread_kill = False   
-        self.stats_to_draw = list()     
+        self.stats_to_draw = list()    
+
+        self.export_timer = None 
 
         # roz objects
         self.rman_stats_session_name = "RfB Stats Session"
@@ -303,7 +307,9 @@ class RfBStatsManager(object):
         self._prevTotalRaysValid = True      
         self.export_stat_label = ''
         self.export_stat_progress = 0.0
-        self._isRendering = True              
+        self._isRendering = True    
+        self.use_export_timer = False
+        self.export_timer = None          
 
     def create_stats_manager(self): 
         if self.mgr:
@@ -553,12 +559,27 @@ class RfBStatsManager(object):
 
         self.draw_stats()
 
-    def set_export_stats(self, label, progress):
+    def set_export_stats(self, label, progress, total=0):
         self.export_stat_label = label
         self.export_stat_progress = progress
         if self.rman_render.progress_bar_app:
             self.rman_render.progress_bar_window.update_progress(self.export_stat_label, self.export_stat_progress * 100)       
-            self.rman_render.progress_bar_app.processEvents()
+            if total > PROCESS_EVENTS_LIMIT:
+                '''
+                At some point, calling processEvents becomes a bottleneck for exporting
+                So, if the total number of instances is above PROCESS_EVENTS_LIMIT
+                call processEvents every PROCESS_EVENTS_TIME seconds
+                '''
+                if self.export_timer is None:
+                    self.export_timer = time.time()
+                else:
+                    now = time.time()
+                    diff = now - self.export_timer
+                    if diff > PROCESS_EVENTS_TIME:
+                        self.rman_render.progress_bar_app.processEvents()
+                        self.export_timer = time.time()
+            else:
+                self.rman_render.progress_bar_app.processEvents()
 
     def draw_stats(self):
         if self.rman_render.rman_context.is_exporting_state():

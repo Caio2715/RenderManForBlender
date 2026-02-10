@@ -595,12 +595,12 @@ class RmanScene(object):
         viewport = self.context.space_data
         if viewport is None or viewport.type != 'VIEW_3D':
             return True
+            
 
         if instance.is_instance:
             ob_eval = instance.instance_object
             ob_eval_visible = ob_eval.visible_in_viewport_get(viewport)
-            parent_visible = instance.parent.visible_in_viewport_get(viewport)
-            return (ob_eval_visible and parent_visible)
+            return ob_eval_visible
 
         if ob_eval is None:
             ob_eval = instance.object.evaluated_get(self.depsgraph)
@@ -651,12 +651,15 @@ class RmanScene(object):
         rman_group_translator = self.rman_translators['GROUP']
         rman_sg_group = self.get_rman_sg_instance(ob_inst, rman_sg_node, instance_parent, psys, create=True)
         is_empty_instancer = False
+        rman_parent_node = None
         if instance_parent: 
             is_empty_instancer = object_utils.is_empty_instancer(instance_parent)
+            parent_proto_key = object_utils.prototype_key(instance_parent)
+            rman_parent_node = self.get_rman_prototype(parent_proto_key, ob=instance_parent, create=True)                  
            
         # Object attrs
         translator =  self.rman_translators.get(rman_type, None)
-        if translator:
+        if translator and not instance_parent:
             self.update_instance_attributes(translator, rman_sg_group, ob_eval, ob_inst)
 
         # Add any particles necessary
@@ -665,7 +668,7 @@ class RmanScene(object):
                 rman_sg_group.sg_node.AddChild(rman_sg_node.rman_sg_particle_group_node.sg_node)
 
         # Attach any material overrides
-        if is_empty_instancer:
+        if is_empty_instancer or instance_parent:
             if instance_parent.renderman.rman_material_override:
                 rman_sg_group.sg_node.SetMaterial(None)
             else:
@@ -682,11 +685,11 @@ class RmanScene(object):
             rman_sg_group.is_meshlight = rman_sg_node.is_meshlight           
 
         if is_empty_instancer:
-            # if this is an empty instancer, add as a child to the empty instancer
-            parent_proto_key = object_utils.prototype_key(instance_parent)
-            rman_parent_node = self.get_rman_prototype(parent_proto_key, ob=instance_parent, create=True)             
+            # if this is an empty instancer, add as a child to the empty instancer            
             rman_parent_node.sg_attributes.AddChild(rman_sg_group.sg_node)
             rman_sg_group.is_meshlight = rman_parent_node.is_meshlight
+        elif rman_parent_node:
+            rman_parent_node.sg_attributes.AddChild(rman_sg_group.sg_node)
         else:
             rman_sg_node.sg_attributes.AddChild(rman_sg_group.sg_node)
 
@@ -732,21 +735,23 @@ class RmanScene(object):
         for i, ob_inst in enumerate(self.depsgraph.object_instances):
             if self.cancel_requested():
                 return False
-            ob = ob_inst.object
-            rfb_log().debug("   Exported %d/%d instances... (%s)" % (i, total, ob.name))
-            self.rman_render.stats_mgr.set_export_stats("Exporting (%s)" % ob.name,i/total)
+            ob = ob_inst.object        
+
+            # commenting this out for now as 
+            # we seem to miss specific instances that should be visible
+            # but are not when we call visible_in_viewport_get
+
+            # if not self.check_visibility(ob_inst):
+            #    rfb_log().debug("       Object (%s) not visible" % (ob.name))
+            #    continue               
             if ob.type in ('CAMERA'):
-                continue
+                continue         
 
             if selected_objects and not self.is_instance_selected(ob_inst):
-                continue
+                continue             
 
             # only export these objects
             if objects_list and ob.original not in objects_list:
-                continue
-
-            if not self.check_visibility(ob_inst):
-                rfb_log().debug("       Object (%s) not visible" % (ob.name))
                 continue
 
             ob_eval = ob.evaluated_get(self.depsgraph)
@@ -769,6 +774,8 @@ class RmanScene(object):
                 continue
 
             self.export_instance(ob_eval, ob_inst, rman_sg_node, rman_type, instance_parent, psys)
+            rfb_log().debug("   Exported %d/%d instances... (%s)" % (i, total, ob.name))   
+            self.rman_render.stats_mgr.set_export_stats("Exported (%s)" % ob.name,i/total, total) 
         return True
 
     def export_data_block(self, proto_key, ob):

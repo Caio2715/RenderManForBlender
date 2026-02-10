@@ -51,16 +51,16 @@ from .rman_handlers.rman_it_handlers import add_ipr_to_it_handlers, remove_ipr_t
 
 from .rman_denoiser import RmanDenoiser
 
-__RMAN_RENDER__ = None
-__RMAN_IT_PORT__ = -1
-__BLENDER_DSPY_PLUGIN__ = None
-__D_QUICKLYNOISELESS__ = None
+RMAN_RENDER = None
+RMAN_IT_PORT = -1
+BLENDER_DSPY_PLUGIN = None
+D_QUICKLYNOISELESS = None
 DRAW_THREAD = None
-__RMAN_STATS_THREAD__ = None
+RMAN_STATS_THREAD = None
 
 # map Blender display file format
 # to ice format
-__BLENDER_TO_ICE_DSPY__ = {
+BLENDER_TO_ICE_DSPY = {
     'TIFF': ice.constants.FMT_TIFFFLOAT, 
     'TARGA': ice.constants.FMT_TGA,
     'TARGA_RAW': ice.constants.FMT_TGA, 
@@ -72,7 +72,7 @@ __BLENDER_TO_ICE_DSPY__ = {
 }
 
 # map ice format to a file extension
-__ICE_EXT_MAP__ = {
+ICE_EXT_MAP = {
     ice.constants.FMT_TIFFFLOAT: 'tif', 
     ice.constants.FMT_TGA: 'tga', 
     ice.constants.FMT_JPEG: 'jpg',
@@ -82,7 +82,7 @@ __ICE_EXT_MAP__ = {
 }
 
 # map rman display to ice format
-__RMAN_TO_ICE_DSPY__ = {
+RMAN_TO_ICE_DSPY = {
     'tiff': ice.constants.FMT_TIFFFLOAT, 
     'targa': ice.constants.FMT_TGA,
     'openexr': ice.constants.FMT_EXRFLOAT,    
@@ -237,7 +237,7 @@ def get_qt_progress_class():
                     label = label[:self.MAX_STR_LEN] + " ...)"
                 self.progress_label.setText(label)
                 self.progress_bar.setFormat("%p% (" + string_utils._format_time_(time.time() - self.time_start) + ")")
-
+                
         RMAN_QT_PROGRESS = RmanQtProgress
 
     except ModuleNotFoundError as e:
@@ -256,10 +256,10 @@ def __update_areas__():
 
 def __draw_callback__():
     # callback function for the display driver to call tag_redraw
-    global __RMAN_RENDER__
-    if __RMAN_RENDER__.rman_context.is_viewport_rendering() and __RMAN_RENDER__.bl_engine:
+    global RMAN_RENDER
+    if RMAN_RENDER.rman_context.is_viewport_rendering() and RMAN_RENDER.bl_engine:
         try:
-            __RMAN_RENDER__.bl_engine.tag_redraw()
+            RMAN_RENDER.bl_engine.tag_redraw()
             pass
         except ReferenceError as e:
             return  False
@@ -272,34 +272,34 @@ __CALLBACK_FUNC__ = None
 class ItHandler(chatserver.ItBaseHandler):
 
     def dspyRender(self):
-        global __RMAN_RENDER__
-        if not __RMAN_RENDER__.rman_context.is_render_running():                        
+        global RMAN_RENDER
+        if not RMAN_RENDER.rman_context.is_render_running():                        
             bpy.ops.render.render(layer=bpy.context.view_layer.name)             
 
     def dspyIPR(self):
-        global __RMAN_RENDER__
-        if __RMAN_RENDER__.rman_context.is_interactive_running():
+        global RMAN_RENDER
+        if RMAN_RENDER.rman_context.is_interactive_running():
             crop = []
             for c in self.msg.getOpt('crop').split(' '):
                 crop.append(float(c))
             if len(crop) == 4:
-                __RMAN_RENDER__.rman_scene_sync.update_cropwindow(crop)
+                RMAN_RENDER.rman_scene_sync.update_cropwindow(crop)
 
     def stopRender(self):
-        global __RMAN_RENDER__
+        global RMAN_RENDER
         rfb_log().debug("Stop Render Requested.")
-        if __RMAN_RENDER__.rman_context.is_interactive_running():
-            __RMAN_RENDER__.stop_render(stop_draw_thread=False)
-        __RMAN_RENDER__.del_bl_engine() 
+        if RMAN_RENDER.rman_context.is_interactive_running():
+            RMAN_RENDER.stop_render(stop_draw_thread=False)
+        RMAN_RENDER.del_bl_engine() 
 
     def selectObjectById(self):
-        global __RMAN_RENDER__
+        global RMAN_RENDER
 
         obj_id_str = self.msg.getOpt('id', '0')
         obj_id = int(obj_id_str.split(' ')[0])
-        if obj_id < 0 or not (obj_id in __RMAN_RENDER__.rman_scene.obj_hash):
+        if obj_id < 0 or not (obj_id in RMAN_RENDER.rman_scene.obj_hash):
             return
-        name = __RMAN_RENDER__.rman_scene.obj_hash[obj_id]
+        name = RMAN_RENDER.rman_scene.obj_hash[obj_id]
         rfb_log().debug('ID: %d Obj Name: %s' % (obj_id, name))
         obj = bpy.context.scene.objects[name]
         if obj:
@@ -324,10 +324,10 @@ class ItHandler(chatserver.ItBaseHandler):
 
 def start_cmd_server():
 
-    global __RMAN_IT_PORT__
+    global RMAN_IT_PORT
 
-    if __RMAN_IT_PORT__ != -1:
-        return __RMAN_IT_PORT__
+    if RMAN_IT_PORT != -1:
+        return RMAN_IT_PORT
 
     # zero port makes the OS pick one
     host, port = "localhost", 0
@@ -346,9 +346,9 @@ def start_cmd_server():
     thread.daemon = True
     thread.start()
 
-    __RMAN_IT_PORT__ = port
+    RMAN_IT_PORT = port
 
-    return __RMAN_IT_PORT__        
+    return RMAN_IT_PORT        
 
 def draw_threading_func(db):
     refresh_rate = get_pref('rman_viewport_refresh_rate', default=0.01)
@@ -465,8 +465,8 @@ def preload_dsos(rman_render):
             rfb_log().debug('Failed to preload {0}: {1}'.format(plugin_path, error))
 
 def preload_quicklynoiseless():
-    global __D_QUICKLYNOISELESS__
-    if __D_QUICKLYNOISELESS__ is None:
+    global D_QUICKLYNOISELESS
+    if D_QUICKLYNOISELESS is None:
         if RFB_PLATFORM != 'linux':
             return
 
@@ -474,7 +474,7 @@ def preload_quicklynoiseless():
         tree = envconfig().rmantree    
         plugin_path = os.path.join(tree, plugin)
         try:
-            __D_QUICKLYNOISELESS__ = ctypes.CDLL(plugin_path)
+            D_QUICKLYNOISELESS = ctypes.CDLL(plugin_path)
         except OSError as error:
             rfb_log().debug('Failed to preload {0}: {1}'.format(plugin_path, error))
 
@@ -686,11 +686,11 @@ class BlRenderResultHelper:
                         img = img.Flip(False, True, False)
                         #img_format = ice.constants.FMT_EXRFLOAT
                         #if not display_utils.using_rman_displays(bl_view_layer=self.bl_layer):
-                        #    img_format = __BLENDER_TO_ICE_DSPY__.get(self.bl_scene.render.image_settings.file_format, img_format)
+                        #    img_format = BLENDER_TO_ICE_DSPY.get(self.bl_scene.render.image_settings.file_format, img_format)
 
                         # change file extension                            
                         toks = os.path.splitext(filepath)
-                        # ext = __ICE_EXT_MAP__.get(img_format)
+                        # ext = ICE_EXT_MAP.get(img_format)
                         filepath = '%s.%s' % (toks[0], ext)                            
                         img.Save(filepath, img_format)        
 
@@ -703,7 +703,7 @@ class RmanRender(object):
     '''
 
     def __init__(self):
-        global __RMAN_RENDER__
+        global RMAN_RENDER
         self.rictl = rman.RiCtl.Get()
         self._start_prman_begin()
         self.sgmngr = rman.SGManager.Get()
@@ -742,11 +742,11 @@ class RmanRender(object):
 
     @classmethod
     def get_rman_render(self):
-        global __RMAN_RENDER__
-        if __RMAN_RENDER__ is None:
-            __RMAN_RENDER__ = RmanRender()
+        global RMAN_RENDER
+        if RMAN_RENDER is None:
+            RMAN_RENDER = RmanRender()
 
-        return __RMAN_RENDER__
+        return RMAN_RENDER
 
     @property
     def bl_engine(self):
@@ -894,23 +894,23 @@ class RmanRender(object):
 
     def start_export_stats_thread(self): 
         # start an export stats thread
-        global __RMAN_STATS_THREAD__       
-        __RMAN_STATS_THREAD__ = threading.Thread(target=call_stats_export_payloads, args=(self, ))
-        __RMAN_STATS_THREAD__.start()              
+        global RMAN_STATS_THREAD       
+        RMAN_STATS_THREAD = threading.Thread(target=call_stats_export_payloads, args=(self, ))
+        RMAN_STATS_THREAD.start()              
 
     def start_stats_thread(self): 
         # start a stats thread so we can periodically call update_payloads
-        global __RMAN_STATS_THREAD__
-        if __RMAN_STATS_THREAD__:
-            __RMAN_STATS_THREAD__.join()
-            __RMAN_STATS_THREAD__ = None
-        __RMAN_STATS_THREAD__ = threading.Thread(target=call_stats_update_payloads, args=(self, ))
+        global RMAN_STATS_THREAD
+        if RMAN_STATS_THREAD:
+            RMAN_STATS_THREAD.join()
+            RMAN_STATS_THREAD = None
+        RMAN_STATS_THREAD = threading.Thread(target=call_stats_update_payloads, args=(self, ))
         if self.is_xpu:
             # FIXME: for now, add a 1 second delay before starting the stats thread
             # for some reason, XPU doesn't seem to reset the progress between renders
             time.sleep(1.0)        
         self.stats_mgr.reset()
-        __RMAN_STATS_THREAD__.start()         
+        RMAN_STATS_THREAD.start()         
 
     def reset(self):
         self.rman_license_failed = False
@@ -1693,7 +1693,7 @@ class RmanRender(object):
 
     def stop_render(self, stop_draw_thread=True):
         global DRAW_THREAD
-        global __RMAN_STATS_THREAD__
+        global RMAN_STATS_THREAD
         is_main_thread = (threading.current_thread() == threading.main_thread())
         self.reset_redraw_func()
 
@@ -1727,9 +1727,9 @@ class RmanRender(object):
         self.rman_context.set_not_live_rendering()
 
         # stop retrieving stats
-        if __RMAN_STATS_THREAD__:
-            __RMAN_STATS_THREAD__.join()
-            __RMAN_STATS_THREAD__ = None
+        if RMAN_STATS_THREAD:
+            RMAN_STATS_THREAD.join()
+            RMAN_STATS_THREAD = None
 
         if is_main_thread:
             rfb_log().debug("Telling SceneGraph to stop.")    
@@ -1752,15 +1752,15 @@ class RmanRender(object):
             rfb_log().debug("RenderMan has Stopped.")
 
     def get_blender_dspy_plugin(self):
-        global __BLENDER_DSPY_PLUGIN__
-        if __BLENDER_DSPY_PLUGIN__ == None:
+        global BLENDER_DSPY_PLUGIN
+        if BLENDER_DSPY_PLUGIN == None:
             # grab a pointer to the Blender display driver
             ext = '.so'
             if RFB_PLATFORM == "windows":
                     ext = '.dll'
-            __BLENDER_DSPY_PLUGIN__ = ctypes.CDLL(os.path.join(envconfig().rmantree, 'lib', 'plugins', 'd_blender%s' % ext))
+            BLENDER_DSPY_PLUGIN = ctypes.CDLL(os.path.join(envconfig().rmantree, 'lib', 'plugins', 'd_blender%s' % ext))
 
-        return __BLENDER_DSPY_PLUGIN__
+        return BLENDER_DSPY_PLUGIN
 
     def set_redraw_func(self):
         global DRAWCALLBACK_FUNC

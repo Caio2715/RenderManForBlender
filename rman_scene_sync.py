@@ -527,7 +527,14 @@ class RmanSceneSync(object):
         elif rman_type == 'EMPTY_INSTANCER':
             self.check_empty_instancer(dps_update)
         else:                                                       
-            if dps_update.id.original not in self.rman_updates:              
+            if dps_update.id.original not in self.rman_updates: 
+                # do some quick error checking  
+                if rman_type == 'CURVES':
+                    if len(dps_update.id.data.curves) < 1:
+                        return   
+                elif rman_type == 'MESH':
+                    if len(dps_update.id.data.polygons) < 1:
+                        return        
                 rfb_log().debug("\tObject: %s Updated" % dps_update.id.name)
                 rfb_log().debug("\t    is_updated_geometry: %s" % str(dps_update.is_updated_geometry))
                 rfb_log().debug("\t    is_updated_shading: %s" % str(dps_update.is_updated_shading))
@@ -774,7 +781,8 @@ class RmanSceneSync(object):
                 #self.update_collection(dps_update.id)           
             elif isinstance(dps_update.id, bpy.types.GeometryNodeTree):
                 # create an empty RmanUpdate
-                self.create_rman_update(dps_update.id.original, clear_instances=False)
+                # self.create_rman_update(dps_update.id.original, clear_instances=False)
+                rfb_log().debug("GeometryNodeTree updated: %s" % dps_update.id.name)
             else:
                 rfb_log().debug("Not handling %s update: %s" % (str(type(dps_update.id)), dps_update.id.name))
 
@@ -827,20 +835,52 @@ class RmanSceneSync(object):
     @time_this
     def check_instances(self, batch_mode=False):
         deleted_obj_keys = list(self.rman_scene.rman_prototypes) # list of potential objects to delete
-        already_udpated = list() # list of objects already updated during our loop     
+        already_udpated = set() # set of objects already updated during our loop     
         self.need_cleaning = dict()     
-        rfb_log().debug("Updating instances")        
+        rfb_log().debug("Updating instances")  
+
+        '''
+        This loop can get really expensive really fast when we have lots of instances
+        We want to bail on each instance as soon as possible if it was never edited
+        '''
         with self.rman_scene.rman.SGManager.ScopedEdit(self.rman_scene.sg_scene): 
             for instance in self.rman_scene.depsgraph.object_instances:
                 if instance.object.type in ('CAMERA'):
                     continue
 
-                ob_key = instance.object.original
-                ob_eval = instance.object.evaluated_get(self.rman_scene.depsgraph)                
+                # See comment in rman_scene.py in the export_data_blocks method
+                #
+                # if not self.rman_scene.check_visibility(instance):
+                     # this object is not visible
+                #     continue
+
+                ob_key = instance.object.original                   
+                rman_update = self.rman_updates.get(ob_key, None)
+                rman_sg_node = None
+                if rman_update is None:
+                    if self.check_all_instances:
+                        # we have to check all instances in the scene
+                        # build an RmanUpdate instance since it doesn't exist
+                        update_geometry = False
+                        if rman_sg_node and rman_sg_node.is_frame_sensitive and self.frame_number_changed:
+                            update_geometry = True
+                        rman_update = self.create_rman_update(ob_key, 
+                                                              update_geometry=update_geometry, 
+                                                              update_shading=True, 
+                                                              update_transform=True)
+                    else:    
+                        # skip this object
+                        if self.num_instances_changed:
+                            rman_sg_node = self.rman_scene.get_rman_prototype(object_utils.prototype_key(instance))
+                            if rman_sg_node and len(rman_sg_node.instances) > 0:
+                                self.add_to_need_cleaning(instance, rman_sg_node)                  
+                        continue        
+
+                ob_eval = instance.object.evaluated_get(self.rman_scene.depsgraph)  
+                proto_key = object_utils.prototype_key(instance)      
                 instance_parent = None
                 psys = None 
-                is_new_object = False
-                proto_key = object_utils.prototype_key(instance)      
+                is_new_object = False   
                 is_empty_instancer = False
                 is_instance = instance.is_instance        
                 if is_instance:
@@ -850,11 +890,11 @@ class RmanSceneSync(object):
                     is_empty_instancer = object_utils.is_empty_instancer(instance_parent)
                     
                 if proto_key in deleted_obj_keys:
-                    deleted_obj_keys.remove(proto_key) 
-               
-                rman_type = object_utils._detect_primitive_(ob_eval)
+                    deleted_obj_keys.remove(proto_key)                         
                 
-                rman_sg_node = self.rman_scene.get_rman_prototype(proto_key)
+                if rman_sg_node is None:
+                    rman_sg_node = self.rman_scene.get_rman_prototype(proto_key)
+                rman_type = object_utils._detect_primitive_(ob_eval)
                 if rman_sg_node and rman_type != rman_sg_node.rman_type:
                     # Types don't match
                     #
@@ -866,13 +906,8 @@ class RmanSceneSync(object):
                     del self.rman_scene.rman_prototypes[proto_key]
                     rman_sg_node = None
 
-                rman_update = self.rman_updates.get(ob_key, None)
                 if not rman_sg_node:
                     # this is a new object.
-                    
-                    if not self.rman_scene.check_visibility(instance, ob_eval=ob_eval):
-                        # don't t export this object if it's not visible
-                        continue
 
                     rman_sg_node = self.rman_scene.export_data_block(proto_key, ob_eval)
                     if not rman_sg_node:
@@ -896,21 +931,6 @@ class RmanSceneSync(object):
                     # since we've already exported the datablock                        
                     rman_update.is_updated_geometry = False
                                                                 
-                if self.check_all_instances:
-                    # check all instances in the scene
-                    # build an RmanUpdate instance if it doesn't exist
-                    if rman_update is None:
-                        rman_update = RmanUpdate()
-                        rman_update.is_updated_shading = True
-                        rman_update.is_updated_transform = True
-                        if rman_sg_node.is_frame_sensitive and self.frame_number_changed:
-                            rman_update.is_updated_geometry = True                              
-                        self.rman_updates[ob_key] = rman_update  
-                elif rman_update is None:    
-                    # no RmanUpdate exists for this object
-                    if len(rman_sg_node.instances) > 0:
-                        self.add_to_need_cleaning(instance, rman_sg_node)                  
-                    continue
                     
                 # Originally, we were only updating the prototype, if the DepsgraphInstance
                 # was not is_instance. However, this doesn't work for META
@@ -952,7 +972,7 @@ class RmanSceneSync(object):
                             if rman_sg_node.npoints == 0:
                                 rfb_log().debug("\tMesh: %s has no points" % proto_key)
                                 continue 
-                        already_udpated.append(proto_key)   
+                        already_udpated.add(proto_key)   
 
                 if rman_type in object_utils._RMAN_NO_INSTANCES_:
                     if rman_type == 'EMPTY':
@@ -963,7 +983,8 @@ class RmanSceneSync(object):
                 rman_sg_group = self.rman_scene.get_rman_sg_instance(instance, rman_sg_node, instance_parent, psys, create=False)
                 rman_group_translator = self.rman_scene.rman_translators['GROUP']
 
-                self.add_to_need_cleaning(instance, rman_sg_node)  
+                if self.num_instances_changed:
+                    self.add_to_need_cleaning(instance, rman_sg_node)  
 
                 if rman_sg_group:
                     # update instance attributes
@@ -1014,19 +1035,20 @@ class RmanSceneSync(object):
                             rfb_log().debug("\t\tRemoving particle nodes: %s" % proto_key)
                         for k in rman_particle_nodes:                        
                             del ob_psys[k]
-                                                                                            
-            # delete objects
-            if deleted_obj_keys:
-                self.delete_objects(deleted_obj_keys)      
+                                                                        
+            if self.num_instances_changed:
+                # delete objects
+                if deleted_obj_keys:
+                    self.delete_objects(deleted_obj_keys)    
 
-            # finally, check what instances need to be deleted
-            for rman_sg_node, lst in self.need_cleaning.items():
-                # get the difference in the keys; what's left is what needs to be deleted
-                to_delete = set(rman_sg_node.instances.keys()) - set(lst)
-                for k in to_delete:
-                    if k in rman_sg_node.instances:
-                        g = rman_sg_node.instances.pop(k)
-                        del g
+                # finally, check what instances need to be deleted
+                for rman_sg_node, lst in self.need_cleaning.items():
+                    # get the difference in the keys; what's left is what needs to be deleted
+                    to_delete = set(rman_sg_node.instances.keys()) - set(lst)
+                    for k in to_delete:
+                        if k in rman_sg_node.instances:
+                            g = rman_sg_node.instances.pop(k)
+                            del g
                      
     @time_this
     def delete_objects(self, deleted_obj_keys=list()):
