@@ -1087,9 +1087,9 @@ class RmanRender(object):
             self.rman_context.set_render_state(RmanRenderContext.k_render_state_rendering)
         if is_render_into_blender and self.bl_rr_helper:
             self.bl_rr_helper.finish_passes()            
-        elif for_background and not use_compositor:
-            # if we're background mode and not using the compositor,
-            # i.e.: we're not using the Blender display driver
+        #elif for_background and not use_compositor:
+        elif self.bl_rr_helper is None:
+            # if we're not using the Blender display driver
             # make sure we create a black/empty image to as the Blender 
             # render result
             BlRenderResultHelper.write_empty_result(self, bl_layer)

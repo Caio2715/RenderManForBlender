@@ -66,10 +66,10 @@ class RmanPointCloudTranslator(RmanTranslator):
         velocity = bl_attributes.get('velocity', None)          
         
         npoints = len(P)
-        rman_sg_pointcloud.sg_node.Define(npoints)
+        rman_sg_pointcloud.sg_pointcloud.Define(npoints)
         rman_sg_pointcloud.npoints = npoints
 
-        primvar = rman_sg_pointcloud.sg_node.GetPrimVars()
+        primvar = rman_sg_pointcloud.sg_pointcloud.GetPrimVars()
         primvar.Clear()                       
 
         primvar.SetPointDetail(self.rman_scene.rman.Tokens.Rix.k_P, P, "vertex")        
@@ -98,4 +98,4 @@ class RmanPointCloudTranslator(RmanTranslator):
         BlAttribute.set_rman_primvars(primvar, bl_attributes)         
             
         super().export_object_primvars(ob, primvar)            
-        rman_sg_pointcloud.sg_node.SetPrimVars(primvar)         
+        rman_sg_pointcloud.sg_pointcloud.SetPrimVars(primvar)         
