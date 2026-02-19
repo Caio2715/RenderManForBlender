@@ -69,18 +69,18 @@ def _get_mesh_uv_(mesh, name="", ob=None):
 
 def _get_mesh_vcol_(mesh, name="", ob=None):    
     if not name:
-        vcol_layer = mesh.vertex_colors.active
+        vcol_layer = mesh.color_attributes.active_color
         if ob and not vcol_layer:
-            if not hasattr(ob.original.data, 'vertex_colors'):
+            if not hasattr(ob.original.data, 'color_attributes'):
                 return None
             # same issue with uv's
             # vertex colors for geometry nodes are on the attributes
             # property
-            active = ob.original.data.vertex_colors.active
+            active = ob.original.data.color_attributes.active_color
             if active:
                 vcol_layer = mesh.attributes.get(active.name, None)        
     else:
-        vcol_layer = mesh.vertex_colors[name]
+        vcol_layer = mesh.color_attributes[name]
         if not vcol_layer:
             vcol_layer = mesh.attributes.get(name, None)
 
@@ -248,7 +248,7 @@ def _get_primvars_(ob, rman_sg_mesh, geo, rixparams):
     if rm.export_default_vcol:
         vcols = _get_mesh_vcol_(geo, ob=ob)
         if vcols is not None and vcols.any():
-            detail = "facevarying" if facevarying_detail == len(vcols) else "vertex"
+            detail = "facevarying" if (facevarying_detail*3) == len(vcols) else "vertex"
             rixparams.SetColorDetail("Cs", vcols, detail)
 
     # reference pose
@@ -289,7 +289,7 @@ def _get_primvars_(ob, rman_sg_mesh, geo, rixparams):
                 vcols = _get_mesh_vcol_(geo, p.data_name)
                 
                 if vcols is not None and vcols.any():
-                    detail = "facevarying" if facevarying_detail == len(vcols) else "vertex"
+                    detail = "facevarying" if (facevarying_detail*3) == len(vcols) else "vertex"
                     rixparams.SetColorDetail(p.name, vcols.data, detail)
                 
             elif p.data_source == 'UV_TEXTURE':
@@ -307,8 +307,8 @@ def _get_primvars_(ob, rman_sg_mesh, geo, rixparams):
                     rixparams.SetFloatDetail(p.name, weights, detail)
             elif p.data_source == 'VERTEX_ATTR_COLOR':
                 vattr = _get_mesh_vattr_(geo, p.data_name)            
-                if vattr and len(vattr) > 0:
-                    detail = "facevarying" if facevarying_detail == len(vattr) else "vertex"
+                if vattr is not None and vattr.any():
+                    detail = "facevarying" if (facevarying_detail*3) == len(vattr) else "vertex"
                     rixparams.SetColorDetail(p.data_name, vattr, detail)
 
     rm_scene = rman_sg_mesh.rman_scene.bl_scene.renderman
