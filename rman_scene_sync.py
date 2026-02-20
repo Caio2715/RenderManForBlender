@@ -527,14 +527,7 @@ class RmanSceneSync(object):
         elif rman_type == 'EMPTY_INSTANCER':
             self.check_empty_instancer(dps_update)
         else:                                                       
-            if dps_update.id.original not in self.rman_updates: 
-                # do some quick error checking  
-                if rman_type == 'CURVES':
-                    if len(dps_update.id.data.curves) < 1:
-                        return   
-                elif rman_type == 'MESH':
-                    if len(dps_update.id.data.polygons) < 1:
-                        return        
+            if dps_update.id.original not in self.rman_updates:     
                 rfb_log().debug("\tObject: %s Updated" % dps_update.id.name)
                 rfb_log().debug("\t    is_updated_geometry: %s" % str(dps_update.is_updated_geometry))
                 rfb_log().debug("\t    is_updated_shading: %s" % str(dps_update.is_updated_shading))
@@ -854,7 +847,12 @@ class RmanSceneSync(object):
                      # this object is not visible
                 #     continue
 
-                ob_key = instance.object.original                   
+                ob_key = instance.object.original              
+                instance_parent = None
+                psys = None 
+                is_empty_instancer = False
+                is_instance = instance.is_instance           
+
                 rman_update = self.rman_updates.get(ob_key, None)
                 rman_sg_node = None
                 if rman_update is None:
@@ -868,6 +866,15 @@ class RmanSceneSync(object):
                                                               update_geometry=update_geometry, 
                                                               update_shading=True, 
                                                               update_transform=True)
+                    elif is_instance and instance.parent.original in self.rman_updates:
+                        # check if the parent was the thing that got updated
+
+                        rman_update = self.rman_updates.get(instance.parent.original)
+                        ob_key = instance.instance_object.original      
+                        psys = instance.particle_system
+                        instance_parent = instance.parent 
+                        is_empty_instancer = object_utils.is_empty_instancer(instance_parent)                
+
                     else:    
                         # skip this object
                         if self.num_instances_changed:
@@ -878,16 +885,13 @@ class RmanSceneSync(object):
 
                 ob_eval = instance.object.evaluated_get(self.rman_scene.depsgraph)  
                 proto_key = object_utils.prototype_key(instance)      
-                instance_parent = None
-                psys = None 
-                is_new_object = False   
                 is_empty_instancer = False
-                is_instance = instance.is_instance        
-                if is_instance:
+                is_new_object = False
+                if is_instance and instance_parent is None:
                     ob_key = instance.instance_object.original      
                     psys = instance.particle_system
                     instance_parent = instance.parent 
-                    is_empty_instancer = object_utils.is_empty_instancer(instance_parent)
+                    is_empty_instancer = object_utils.is_empty_instancer(instance_parent)                    
                     
                 if proto_key in deleted_obj_keys:
                     deleted_obj_keys.remove(proto_key)                         

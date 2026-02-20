@@ -249,7 +249,7 @@ def _get_primvars_(ob, rman_sg_mesh, geo, rixparams):
         vcols = _get_mesh_vcol_(geo, ob=ob)
         if vcols is not None and vcols.any():
             detail = "facevarying" if (facevarying_detail*3) == len(vcols) else "vertex"
-            rixparams.SetColorDetail("Cs", vcols, detail)
+            rixparams.SetColorDetail("Cs", vcols.data, detail)
 
     # reference pose
     if hasattr(rm, 'reference_pose'):
@@ -272,7 +272,7 @@ def _get_primvars_(ob, rman_sg_mesh, geo, rixparams):
                 detail = "facevarying" if facevarying_detail == len(weights) else "vertex"
                 rixparams.SetFloatDetail(nm, weights, detail)        
         
-    else:
+    elif len(rm.prim_vars) > 0:
         # custom prim vars
         for p in rm.prim_vars:
             if p.data_source == 'ATTRIBUTES':
@@ -309,7 +309,7 @@ def _get_primvars_(ob, rman_sg_mesh, geo, rixparams):
                 vattr = _get_mesh_vattr_(geo, p.data_name)            
                 if vattr is not None and vattr.any():
                     detail = "facevarying" if (facevarying_detail*3) == len(vattr) else "vertex"
-                    rixparams.SetColorDetail(p.data_name, vattr, detail)
+                    rixparams.SetColorDetail(p.data_name, vattr.data, detail)
 
     rm_scene = rman_sg_mesh.rman_scene.bl_scene.renderman
     property_utils.set_primvar_bl_props(rixparams, rm, inherit_node=rm_scene)
