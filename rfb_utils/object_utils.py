@@ -47,12 +47,12 @@ def get_group_db_name(ob_inst):
             parent = ob_inst.parent
             psys = ob_inst.particle_system
             persistent_id = ''.join(str(x) for x in reversed(ob_inst.persistent_id))
+            # note, we cannot fully rely on the persistent ID because it doesn't seem to
+            # be unique in the case of instancing collections (see CUSP-9056)
             if psys:
-                #group_db_name = "%s|%s|%s|%s" % (parent.name_full, ob.name_full, psys.name, persistent_id)
-                group_db_name = "%s|%s" % (psys.name, persistent_id)
+                group_db_name = "%s|%s|%s|%s" % (parent.name_full, ob.name_full, psys.name, persistent_id)
             else:
-                #group_db_name = "%s|%s|%s" % (parent.name_full, ob.name_full, persistent_id)
-                group_db_name = "%s" % persistent_id
+                group_db_name = "%s|%s|%s" % (parent.name_full, ob.name_full, persistent_id)
         else:
             ob = ob_inst.object
             group_db_name = "%s" % (ob.name_full)
@@ -193,7 +193,7 @@ def prototype_key(ob):
         if ob.is_instance:
             if ob.object.data:
                 if isinstance(ob.object.data, bpy.types.Mesh): 
-                    if ob.object.data == 'Mesh':
+                    if ob.object.data == 'Mesh' or ob.object.data.name == 'Mesh':
                         # see below about gpu_acceleration bug
                         data_ob = bpy.data.objects[ob.object.name]
                         if data_ob.original.data:
@@ -211,7 +211,7 @@ def prototype_key(ob):
             else:
                 return '%s-%s-OBJECT' % (ob.object.type, ob.object.name_full)
         if ob.object.data:
-            if isinstance(ob.object.data, bpy.types.Mesh) and use_gpu_subdiv:
+            if isinstance(ob.object.data, bpy.types.Mesh):
                 '''
                 Blender 3.1 added a new use gpu acceleration for subdivs:
 
@@ -224,7 +224,7 @@ def prototype_key(ob):
                 We can remove this once this gets fixed in Blender: 
                 https://projects.blender.org/blender/blender/issues/111393
                 '''
-                if ob.object.data == 'Mesh':
+                if ob.object.data == 'Mesh' or ob.object.data.name == 'Mesh':
                     data_ob = bpy.data.objects[ob.object.name]
                     return '%s-MESH-DATA' % data_ob.original.data.name_full
                 return '%s-%s-DATA' % (ob.object.type, ob.object.data.name_full) 
@@ -239,7 +239,7 @@ def prototype_key(ob):
             return '%s-%s-DATA' % (ob.object.type, ob.object.data.name_full)
         return '%s-%s-OBJECT' % (ob.object.type, ob.object.original.name_full)
     elif ob.data:
-        if isinstance(ob.data, bpy.types.Mesh) and use_gpu_subdiv:
+        if isinstance(ob.data, bpy.types.Mesh):
             '''
             Blender 3.1 added a new use gpu acceleration for subdivs:
 
@@ -252,7 +252,7 @@ def prototype_key(ob):
             We can remove this once this gets fixed in Blender: 
             https://projects.blender.org/blender/blender/issues/111393
             '''
-            if ob.data == 'Mesh':
+            if ob.data == 'Mesh'  or ob.data.name == 'Mesh':
                 data_ob = bpy.data.objects[ob.name]
                 return '%s-MESH-DATA' % data_ob.original.data.name_full
             return '%s-%s-DATA' % (ob.type, ob.data.name_full)

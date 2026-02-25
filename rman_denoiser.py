@@ -4,12 +4,6 @@ from .rfb_utils import scene_utils
 from collections import OrderedDict
 import numpy as np
 
-qn = None
-try:
-    import QuicklyNoiseless as qn
-except ImportError:
-    pass
-
 class RmanDenoiser:
 
     def __init__(self, stats_mgr):
@@ -23,7 +17,12 @@ class RmanDenoiser:
         self.denoiser = None
 
     def bootstrap(self, width, height, asymmetry, use_color_pass):
-        global qn
+        qn = None
+        try:
+            import QuicklyNoiseless as qn
+        except ImportError:
+            self.denoiser = None
+            return 
 
         self.width = width
         self.height = height
@@ -36,11 +35,8 @@ class RmanDenoiser:
             self.parameters = os.path.join(envconfig().rmantree, "lib", "denoise", "20973-renderman.param")
             self.topology = os.path.join(envconfig().rmantree, "lib", "denoise", "full_w1_5s_sym_gen2.topo")
 
-        if qn:
-            self.denoiser = qn.Denoiser(height, width, self.parameters, self.topology)
-            self.denoiser.enableWarping(-1.0, 1.0, False)           
-        else:
-            self.denoiser = None
+        self.denoiser = qn.Denoiser(height, width, self.parameters, self.topology)
+        self.denoiser.enableWarping(-1.0, 1.0, False)           
 
     def denoise(self, passes, render, render_border):
         if self.denoiser is None:

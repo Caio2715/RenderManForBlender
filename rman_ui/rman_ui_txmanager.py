@@ -363,7 +363,7 @@ class PRMAN_OT_Renderman_txmanager_clear_all_cache(Operator):
 
     def execute(self, context):
         rr = rman_render.RmanRender.get_rman_render() 
-        if rr.rman_interactive_running and rr.sg_scene:
+        if context.scene.renderman.is_rman_interactive_running and rr.sg_scene:
             texture_list = list()
             for item in context.scene.rman_txmgr_list:
                 if item.nodeID != "":

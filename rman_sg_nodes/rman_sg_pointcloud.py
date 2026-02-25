@@ -6,6 +6,7 @@ class RmanSgPointCloud(RmanSgNode):
         super().__init__(rman_scene, sg_node, db_name)
         self.matrix_world = None
         self.npoints = -1
+        self.sg_pointcloud = None
 
     @property
     def matrix_world(self):

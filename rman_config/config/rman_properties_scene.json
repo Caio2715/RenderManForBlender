@@ -1583,8 +1583,18 @@
             "type": "string",
             "default": "<OUT>/images/v<version>_t<take>/<scene>.<layer>.<aov>.<F4>.<ext>",
             "widget": "fileinput",
-            "help": "Path for the beauty image"                   
+            "help": "Path for AOV images"                   
         },  
+        {
+            "panel": "RENDER_PT_renderman_workspace",
+            "page": "",
+            "name": "path_comp_image_output",
+            "label": "Composited Image Output Path",
+            "type": "string",
+            "default": "<OUT>/images/v<version>_t<take>/<scene>.final.<F4>",
+            "widget": "fileinput",
+            "help": "Path for final composited images from the Blender compositor, if compositing is used. OpenEXR is always used. This is the same as Blender's filepath "
+        },          
         {
             "panel": "RENDER_PT_renderman_workspace",
             "page": "",
@@ -1693,7 +1703,7 @@
             "default": 1,
             "widget": "checkbox",
             "bl_prop_options": "",
-            "help": "Only applies to Blender Batch and if you're using RenderMan Displays. When enabled, all of the RenderMan Display settings are ignored, and one final image from the Blender compositor is written out. When using RIB, the Blender compositor cannot be used.",
+            "help": "Only applies to Blender Batch and if you're using RenderMan Displays. When enabled, all of the RenderMan Display AOVs will not be written to disk unless Blender Batch AOVs is turned on. However, if no compositing nodes are used all AOVs will still be written out to disk, regardess if Blender Batch AOVs is on or off. When using RIB, the Blender compositor cannot be used.",
             "conditionalVisOps": {
                 "conditionalVisOp": "equalTo",
                 "conditionalVisPath": "spool_style",

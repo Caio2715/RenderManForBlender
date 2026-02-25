@@ -59,13 +59,15 @@ class CURVE_PT_renderman_prim_vars(CollectionPanel, Panel):
         layout = self.layout
         self.layout.use_property_split = True
         self.layout.use_property_decorate = False           
-        curve = context.curve
+        curve = context.curves
+        ctx_name = "curves"
         if curve is None:
-            curve = context.curves
+            curve = context.curve
+            ctx_name = "curve"
         rm = curve.renderman
 
         self._draw_collection(context, layout, rm, "Primitive Variables:",
-                              "collection.add_remove", "curve", "prim_vars",
+                              "collection.add_remove", ctx_name, "prim_vars",
                               "prim_vars_index")
 
         _draw_ui_from_rman_config('rman_properties_curve', 'CURVE_PT_renderman_prim_vars', context, layout, rm)             

@@ -120,20 +120,20 @@ class RmanFluidTranslator(RmanTranslator):
         P = rman_mesh.P
         N = rman_mesh.N
 
-        npolys = len(nverts) 
-        npoints = len(P)
-        numnverts = len(verts)
+        npolys = rman_mesh.npolys 
+        npoints = rman_mesh.npoints 
+        numnverts = rman_mesh.numnverts 
 
         sg_node.Define( npolys, npoints, numnverts )
         primvar = sg_node.GetPrimVars() 
-        primvar.SetPointDetail(self.rman_scene.rman.Tokens.Rix.k_P, P, "vertex")
-        primvar.SetIntegerDetail(self.rman_scene.rman.Tokens.Rix.k_Ri_nvertices, nverts, "uniform")
-        primvar.SetIntegerDetail(self.rman_scene.rman.Tokens.Rix.k_Ri_vertices, verts, "facevarying")  
-        if N:
-            if len(N) == numnverts:
-                primvar.SetNormalDetail(self.rman_scene.rman.Tokens.Rix.k_N, N, "facevarying")         
-            elif len(N) == npoints:
-                primvar.SetNormalDetail(self.rman_scene.rman.Tokens.Rix.k_N, N, "vertex")
+        primvar.SetPointDetail(self.rman_scene.rman.Tokens.Rix.k_P, P.data, "vertex")
+        primvar.SetIntegerDetail(self.rman_scene.rman.Tokens.Rix.k_Ri_nvertices, nverts.data, "uniform")
+        primvar.SetIntegerDetail(self.rman_scene.rman.Tokens.Rix.k_Ri_vertices, verts.data, "facevarying")  
+        if N.any():
+            if rman_mesh.nnormals == numnverts:
+                primvar.SetNormalDetail(self.rman_scene.rman.Tokens.Rix.k_N, N.data, "facevarying")         
+            elif rman_mesh.nnormals == npoints:
+                primvar.SetNormalDetail(self.rman_scene.rman.Tokens.Rix.k_N, N.data, "vertex")
         sg_node.SetPrimVars(primvar)
 
         # Attach material

@@ -13,6 +13,7 @@ from .rfb_utils import render_utils
 from .rfb_utils.prefs_utils import get_pref
 from .rman_config import __RFB_CONFIG_DICT__ as rfb_config
 from .rfb_logger import rfb_log
+from .rman_constants import RFB_PLATFORM
 
 import tractor.api.author as author
 
@@ -486,7 +487,7 @@ class RmanSpool(object):
 
         # Don't generate denoise tasks if we're baking
         # or using the Blender compositor
-        if rm.ai_denoiser_launch and rm.hider_type == 'RAYTRACE' and (not rm.use_bl_compositor and not scene.use_nodes):
+        if rm.ai_denoiser_launch and rm.hider_type == 'RAYTRACE' and not rm.use_bl_compositor:
             parent_task = self.generate_aidenoise_tasks(frame_begin, frame_end, by)                               
                 
             if parent_task:
@@ -498,6 +499,14 @@ class RmanSpool(object):
                                                 asFilePath=True)            
         else:
             jobfile = os.path.splitext(scene_filename)[0] + '.%s.alf' % bl_view_layer.replace(' ', '_')
+
+        if RFB_PLATFORM == 'windows':
+            # LocalQueue's cleanup command doesn't seem to handle \
+            bl_filename = bl_filename.replace('\\', '/')
+            jobfile = jobfile.replace('\\', '/')
+            if bl_stash_blend_cache != "":
+                bl_stash_blend_cache = bl_stash_blend_cache.replace('\\', '/')
+
 
         stashFileCleanup = author.Command(local=False)
         stashFileCleanup.argv = ["TractorBuiltIn", "File", "delete",
@@ -586,6 +595,9 @@ class RmanSpool(object):
                                                 asFilePath=True)            
         else:
             jobfile = os.path.splitext(bl_filename)[0] + '.%s.alf' % bl_view_layer.replace(' ', '_')        
+
+        if RFB_PLATFORM == 'windows':
+            jobfile = jobfile.replace('\\', '/')
 
         jobFileCleanup = author.Command(local=False)
         jobFileCleanup.argv = ["TractorBuiltIn", "File", "delete",
